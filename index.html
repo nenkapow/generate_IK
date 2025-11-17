@@ -38,14 +38,19 @@
       display:flex;align-items:center;justify-content:space-between;gap:.5rem;
       font-size:.8rem;color:var(--fg-dim);margin-bottom:.3rem;
     }
+    .step-header button,
+    .img-header button{
+      background:#b91c1c;border-color:#b91c1c;color:#f9fafb;
+      padding:.2rem .45rem;font-size:.7rem;border-radius:.4rem;
+    }
     hr{border:none;border-top:1px solid var(--border);margin:.75rem 0;}
     @media(max-width:768px){
       .row{flex-direction:column;}
     }
   </style>
 
-  <!-- PENTING: pakai index.umd.js -->
-  <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+  <!-- Library DOCX (UMD, expose global `docx`) -->
+  <script src="https://unpkg.com/docx/build/index.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -58,7 +63,7 @@
     </div>
   </div>
 
-  <!-- 1. HEADER -->
+  <!-- DATA HEADER -->
   <div class="card">
     <h2 style="font-size:1rem;margin-top:0;">1. Header Dokumen</h2>
     <div class="row">
@@ -81,7 +86,7 @@
     </div>
   </div>
 
-  <!-- 2. SISTEM MUTU -->
+  <!-- BAGIAN SISTEM MUTU -->
   <div class="card">
     <h2 style="font-size:1rem;margin-top:0;">2. Sistem Manajemen Mutu</h2>
     <div class="small">Bagian judul dan tabel sudah default. Kamu hanya isi teks di bawah ini.</div>
@@ -92,9 +97,9 @@
     <textarea id="refs" placeholder="ISO 9001:2015 pasal 8.5.1&#10;ISO 9001:2015 pasal 8.5.2"></textarea>
   </div>
 
-  <!-- 3. LANGKAH & VISUAL -->
+  <!-- LANGKAH KERJA -->
   <div class="card">
-    <h2 style="font-size:1rem;margin-top:0;">3. Langkah Kerja & Visual</h2>
+    <h2 style="font-size:1rem;margin-top:0;">3. Langkah Kerja &amp; Visual</h2>
     <div class="small">
       • Di dokumen Word nanti dibuat tabel 2 kolom: <strong>Deskripsi</strong> dan <strong>Visual</strong>.<br>
       • Satu “Langkah” di sini = satu nomor langkah (1,2,3,...) di kolom deskripsi.  
@@ -114,18 +119,18 @@
     <button type="button" onclick="addImageInput()">+ Tambah Gambar</button>
   </div>
 
-  <!-- 4. TANDA TANGAN -->
+  <!-- TANDA TANGAN -->
   <div class="card">
     <h2 style="font-size:1rem;margin-top:0;">4. Tanda Tangan</h2>
     <div class="row">
       <div>
         <label>Nama Dibuat</label>
-        <input id="signCreated" type="text">
+        <input id="signCreated" type="text" placeholder="">
         <div class="small">Jabatan fix: Production Supervisor</div>
       </div>
       <div>
         <label>Nama Diperiksa</label>
-        <input id="signChecked" type="text">
+        <input id="signChecked" type="text" placeholder="">
         <div class="small">Jabatan fix: Admin Production</div>
       </div>
       <div>
@@ -143,7 +148,7 @@
 </div>
 
 <script>
-  // ===== UI helper: langkah & gambar =====
+  // -------- UI helper: langkah & gambar ----------
   let stepCounter = 0;
   let imgCounter = 0;
 
@@ -191,24 +196,17 @@
     wrap.appendChild(div);
   }
 
-  // default 1 langkah + 1 gambar
+  // tambah default 1 langkah + 1 gambar
   addStep();
   addImageInput();
 
-  // helper baca file ke ArrayBuffer
-  function fileToArrayBuffer(file){
-    return new Promise((resolve,reject)=>{
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result);
-      reader.onerror = e => reject(e);
-      reader.readAsArrayBuffer(file);
-    });
-  }
-
-  // ====== GENERATE DOCX ======
+  // --------- Generate DOCX ----------
   async function generateDoc() {
-    if (!window.docx) {
-      alert("Library DOCX belum ke-load.\nCoba refresh (Ctrl+F5) dan pastikan koneksi ke https://unpkg.com tidak diblokir.");
+    if (typeof docx === "undefined") {
+      alert(
+        "Library DOCX belum ke-load.\n" +
+        "Pastikan koneksi internet tidak memblokir https://unpkg.com/"
+      );
       return;
     }
 
@@ -216,13 +214,13 @@
       Document, Packer, Paragraph, TextRun,
       Table, TableRow, TableCell,
       WidthType, AlignmentType, BorderStyle, Media
-    } = window.docx;
+    } = docx;
 
-    // ---- ambil data form ----
     const title      = document.getElementById("docTitle").value || "INSTRUKSI KERJA";
     const number     = document.getElementById("docNumber").value || "IK/PRO-TP/XXX";
     const rev        = document.getElementById("docRev").value || "00";
     const effDate    = document.getElementById("docDate").value || "";
+
     const scope      = document.getElementById("scope").value.trim();
     const refsRaw    = document.getElementById("refs").value.trim();
 
@@ -230,100 +228,98 @@
     const signChecked  = document.getElementById("signChecked").value || "";
     const signApproved = document.getElementById("signApproved").value || "Musana";
 
-    // langkah
-    const stepDescs = [];
-    document.querySelectorAll(".step-card textarea[data-role='step-desc']")
-      .forEach((ta)=>{
-        const v = ta.value.trim();
-        if (v) stepDescs.push(v);
-      });
-
-    // gambar
-    const imgCards = document.querySelectorAll(".img-card");
-    const imageInfos = [];
-
-    // doc harus dibuat dulu sebelum Media.addImage
-    const doc = new Document({
-      sections: [],
-      creator: "Generator IK TIGER"
+    // kumpulkan langkah
+    const stepCards = document.querySelectorAll("#stepsContainer .step-card");
+    const steps = [];
+    stepCards.forEach((card, idx) => {
+      const descEl = card.querySelector('[data-role="step-desc"]');
+      const txt = (descEl.value || "").trim();
+      if (txt) steps.push({ no: idx + 1, text: txt });
     });
 
-    // baca logo dari logo-tiger.png
-    let logoImage = null;
+    // kumpulkan gambar
+    const imgCards = document.querySelectorAll("#imagesContainer .img-card");
+    const imageEntries = [];
+    for (const card of imgCards) {
+      const fileInput = card.querySelector('[data-role="img-file"]');
+      const labelInput = card.querySelector('[data-role="img-label"]');
+      const file = fileInput.files[0];
+      if (!file) continue;
+      const buffer = await file.arrayBuffer();
+      imageEntries.push({
+        buffer,
+        label: (labelInput.value || "").trim()
+      });
+    }
+
+    const doc = new Document();
+
+    // ====== HEADER (LOGO + JUDUL) ======
+    let logoRun = null;
     try {
       const res = await fetch("logo-tiger.png");
       if (res.ok) {
         const buf = await res.arrayBuffer();
-        logoImage = Media.addImage(doc, buf, 90, 90);
+        const image = Media.addImage(doc, buf, 120, 120);
+        logoRun = image;
       }
     } catch (e) {
-      // kalau gagal ya sudah, nanti diganti tulisan "TIGER"
+      // kalau gagal logo, ya sudah, lanjut tanpa logo
     }
-
-    // baca semua gambar visual
-    for (const card of imgCards) {
-      const fileInput  = card.querySelector("[data-role='img-file']");
-      const labelInput = card.querySelector("[data-role='img-label']");
-      if (fileInput && fileInput.files && fileInput.files[0]) {
-        const buf = await fileToArrayBuffer(fileInput.files[0]);
-        const img = Media.addImage(doc, buf, 150, 100);
-        imageInfos.push({
-          label: (labelInput.value || "").trim(),
-          image: img
-        });
-      }
-    }
-
-    // ====== 1) HEADER TABLE ======
-    const borderAll = {
-      top:{style:BorderStyle.SINGLE,size:4,color:"000000"},
-      bottom:{style:BorderStyle.SINGLE,size:4,color:"000000"},
-      left:{style:BorderStyle.SINGLE,size:4,color:"000000"},
-      right:{style:BorderStyle.SINGLE,size:4,color:"000000"},
-      insideHorizontal:{style:BorderStyle.SINGLE,size:4,color:"000000"},
-      insideVertical:{style:BorderStyle.SINGLE,size:4,color:"000000"},
-    };
 
     const headerTable = new Table({
-      width:{size:100,type:WidthType.PERCENTAGE},
-      borders:borderAll,
-      rows:[
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
         new TableRow({
-          children:[
+          children: [
             new TableCell({
-              children:[ logoImage
-                ? new Paragraph(logoImage)
-                : new Paragraph({alignment:AlignmentType.CENTER,children:[
-                    new TextRun({text:"TIGER",bold:true})
-                  ]})
-              ],
+              width: { size: 20, type: WidthType.PERCENTAGE },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
+              },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: logoRun ? [logoRun] : []
+                })
+              ]
             }),
             new TableCell({
-              children:[
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
+              },
+              children: [
                 new Paragraph({
-                  alignment:AlignmentType.CENTER,
-                  children:[
-                    new TextRun({text:title,bold:true})
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({ text: title, bold: true })
                   ]
                 })
               ]
             }),
             new TableCell({
-              children:[
+              width: { size: 30, type: WidthType.PERCENTAGE },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
+              },
+              children: [
                 new Paragraph({
-                  children:[
-                    new TextRun({text:"Nomor",bold:true}),
-                    new TextRun({text:" : "+number})
-                  ]
-                })
-              ]
-            }),
-            new TableCell({
-              children:[
-                new Paragraph({
-                  children:[
-                    new TextRun({text:"Revisi",bold:true}),
-                    new TextRun({text:" : "+rev})
+                  children: [
+                    new TextRun({ text: "Nomor", bold: true }),
+                    new TextRun({ text: " : " + number }),
+                    new TextRun({ text: "\n" }),
+                    new TextRun({ text: "Revisi", bold: true }),
+                    new TextRun({ text: " : " + rev })
                   ]
                 })
               ]
@@ -331,25 +327,40 @@
           ]
         }),
         new TableRow({
-          children:[
-            new TableCell({children:[new Paragraph("")]}),
-            new TableCell({children:[new Paragraph("")]}),
+          children: [
             new TableCell({
-              children:[
-                new Paragraph({
-                  children:[
-                    new TextRun({text:"Tgl Efektif",bold:true}),
-                    new TextRun({text:" : "+effDate})
-                  ]
-                })
-              ]
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
+              },
+              children: [new Paragraph({})]
             }),
             new TableCell({
-              children:[
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
+              },
+              children: [new Paragraph({})]
+            }),
+            new TableCell({
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
+              },
+              children: [
                 new Paragraph({
-                  children:[
-                    new TextRun({text:"Hal.",bold:true}),
-                    new TextRun({text:" : 1 / 1"})
+                  children: [
+                    new TextRun({ text: "Tgl Efektif", bold: true }),
+                    new TextRun({ text: " : " + effDate }),
+                    new TextRun({ text: "\n" }),
+                    new TextRun({ text: "Hal.", bold: true }),
+                    new TextRun({ text: " : 1 / 2" })
                   ]
                 })
               ]
@@ -359,184 +370,252 @@
       ]
     });
 
-    // ====== 2) SISTEM MANAJEMEN MUTU ======
-    const isoTitle = [
+    // ====== SISTEM MANAJEMEN MUTU ======
+    const smmTitle = [
       new Paragraph({
-        alignment:AlignmentType.CENTER,
-        children:[new TextRun({text:"SISTEM MANAJEMEN MUTU",bold:true})]
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: "SISTEM MANAJEMEN MUTU", bold: true })]
       }),
       new Paragraph({
-        alignment:AlignmentType.CENTER,
-        children:[new TextRun({text:"ISO 9001:2015",bold:true})]
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: "ISO 9001:2015", bold: true })]
       }),
-      new Paragraph({text:""})
+      new Paragraph({ text: "" })
     ];
 
     const scopeParas = [
       new Paragraph({
-        children:[ new TextRun({text:"Ruang Lingkup",bold:true,underline:{} }) ]
+        children: [new TextRun({ text: "Ruang Lingkup:", bold: true, underline: {} })]
       }),
-      new Paragraph({text: scope || ""}),
-      new Paragraph({text:""})
+      new Paragraph({ text: scope || "" }),
+      new Paragraph({ text: "" })
     ];
 
+    const refsLines = refsRaw ? refsRaw.split(/\r?\n/) : [];
     const refParas = [];
-    refParas.push(new Paragraph({
-      children:[ new TextRun({text:"Referensi:",bold:true,underline:{}}) ]
-    }));
-
-    if (refsRaw) {
-      const lines = refsRaw.split(/\r?\n/).filter(l=>l.trim()!=="");
-      lines.forEach((line,idx)=>{
+    if (refsLines.length) {
+      refParas.push(
+        new Paragraph({
+          children: [new TextRun({ text: "Referensi:", bold: true, underline: {} })]
+        })
+      );
+      refsLines.forEach((line, idx) => {
+        const txt = line.trim();
+        if (!txt) return;
         refParas.push(
           new Paragraph({
-            children:[
-              new TextRun({text:(idx+1)+". "+line})
+            children: [
+              new TextRun({ text: (idx + 1) + ". " + txt })
             ]
           })
         );
       });
+      refParas.push(new Paragraph({ text: "" }));
     }
-    refParas.push(new Paragraph({text:""}));
 
-    // tabel riwayat perubahan (kosong untuk diisi manual)
-    const historyTable = new Table({
-      width:{size:100,type:WidthType.PERCENTAGE},
-      borders:borderAll,
-      rows:[
+    // ====== LANGKAH KERJA & VISUAL ======
+    const langkahParas = [];
+    langkahParas.push(
+      new Paragraph({
+        children: [new TextRun({ text: "Langkah – langkah:", bold: true })]
+      })
+    );
+    steps.forEach((s) => {
+      langkahParas.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: s.no + ". " + s.text })
+          ]
+        })
+      );
+    });
+
+    // tabel gambar 3 kolom
+    const imgCells = [];
+    for (const img of imageEntries) {
+      const imgRun = Media.addImage(doc, img.buffer, 160, 120);
+      const paras = [];
+      if (img.label) {
+        paras.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: img.label })]
+          })
+        );
+      }
+      paras.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [imgRun]
+        })
+      );
+      imgCells.push(new TableCell({ children: paras }));
+    }
+
+    const imgRows = [];
+    for (let i = 0; i < imgCells.length; i += 3) {
+      const rowCells = imgCells.slice(i, i + 3);
+      while (rowCells.length < 3) {
+        rowCells.push(new TableCell({ children: [new Paragraph({})] }));
+      }
+      imgRows.push(new TableRow({ children: rowCells }));
+    }
+
+    const visualTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: imgRows.length ? imgRows : [
         new TableRow({
-          children:[
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"No.",bold:true})]})]}),
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Revisi",bold:true})]})]}),
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Tanggal",bold:true})]})]}),
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Diusulkan Oleh",bold:true})]})]}),
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Uraian Singkat Perubahan",bold:true})]})]}),
+          children: [
+            new TableCell({ children: [new Paragraph({})] }),
+            new TableCell({ children: [new Paragraph({})] }),
+            new TableCell({ children: [new Paragraph({})] })
           ]
-        }),
-        // 3 baris kosong
-        ...[1,2,3].map(()=> new TableRow({
-          children:[
-            new TableCell({children:[new Paragraph("")]}),
-            new TableCell({children:[new Paragraph("")]}),
-            new TableCell({children:[new Paragraph("")]}),
-            new TableCell({children:[new Paragraph("")]}),
-            new TableCell({children:[new Paragraph("")]}),
-          ]
-        }))
+        })
       ]
     });
 
-    // ====== 3) TABEL LANGKAH & VISUAL ======
-    const stepParagraphs = [];
-    if (stepDescs.length === 0) {
-      stepParagraphs.push(new Paragraph("1. ................................................"));
-    } else {
-      stepDescs.forEach((s,i)=>{
-        stepParagraphs.push(
-          new Paragraph({
-            children:[ new TextRun({text:(i+1)+". "+s}) ]
-          })
-        );
-      });
-    }
-
-    const visualParagraphs = [];
-    if (imageInfos.length === 0) {
-      visualParagraphs.push(new Paragraph(" "));
-    } else {
-      imageInfos.forEach(info=>{
-        if (info.label) {
-          visualParagraphs.push(
-            new Paragraph({
-              alignment:AlignmentType.CENTER,
-              children:[new TextRun({text:info.label,bold:true})]
-            })
-          );
-        }
-        visualParagraphs.push(
-          new Paragraph({alignment:AlignmentType.CENTER,children:[info.image]})
-        );
-      });
-    }
-
-    const stepVisualTable = new Table({
-      width:{size:100,type:WidthType.PERCENTAGE},
-      borders:borderAll,
-      rows:[
+    const langkahTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
         new TableRow({
-          children:[
+          children: [
             new TableCell({
-              children:[new Paragraph({
-                alignment:AlignmentType.CENTER,
-                children:[new TextRun({text:"Deskripsi",bold:true})]
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [new TextRun({ text: "Deskripsi", bold: true })]
+                })
+              ]
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [new TextRun({ text: "Visual", bold: true })]
+                })
+              ]
+            })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({ children: langkahParas }),
+            new TableCell({ children: [visualTable] })
+          ]
+        })
+      ]
+    });
+
+    // ====== RIWAYAT PERUBAHAN ======
+    const riwayatRows = [
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph({ text: "No.", bold: true })] }),
+          new TableCell({ children: [new Paragraph({ text: "Revisi", bold: true })] }),
+          new TableCell({ children: [new Paragraph({ text: "Tanggal", bold: true })] }),
+          new TableCell({ children: [new Paragraph({ text: "Diusulkan Oleh", bold: true })] }),
+          new TableCell({ children: [new Paragraph({ text: "Uraian Singkat Perubahan", bold: true })] })
+        ]
+      })
+    ];
+    // 3 baris kosong
+    for (let i = 1; i <= 3; i++) {
+      riwayatRows.push(
+        new TableRow({
+          children: [
+            new TableCell({ children: [new Paragraph({ text: String(i) })] }),
+            new TableCell({ children: [new Paragraph({})] }),
+            new TableCell({ children: [new Paragraph({})] }),
+            new TableCell({ children: [new Paragraph({})] }),
+            new TableCell({ children: [new Paragraph({})] })
+          ]
+        })
+      );
+    }
+    const riwayatTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: riwayatRows
+    });
+
+    // ====== TANDA TANGAN ======
+    const signTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Dibuat", bold: true })]
               })]
             }),
             new TableCell({
-              children:[new Paragraph({
-                alignment:AlignmentType.CENTER,
-                children:[new TextRun({text:"Visual",bold:true})]
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Diperiksa", bold: true })]
+              })]
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Disetujui", bold: true })]
               })]
             })
           ]
         }),
         new TableRow({
-          children:[
-            new TableCell({children:stepParagraphs}),
-            new TableCell({children:visualParagraphs})
+          children: [
+            new TableCell({ children: [new Paragraph({ text: "" })] }),
+            new TableCell({ children: [new Paragraph({ text: "" })] }),
+            new TableCell({
+              children: [
+                new Paragraph({ text: "" }),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [new TextRun({ text: signApproved, bold: true })]
+                })
+              ]
+            })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Production Supervisor" })]
+              })]
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Admin Production" })]
+              })]
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Factory Manager" })]
+              })]
+            })
           ]
         })
       ]
     });
 
-    // ====== 4) TANDA TANGAN TABLE ======
-    const signTable = new Table({
-      width:{size:100,type:WidthType.PERCENTAGE},
-      borders:borderAll,
-      rows:[
-        new TableRow({
-          children:[
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Dibuat",bold:true})]})]}),
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Diperiksa",bold:true})]})]}),
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Disetujui",bold:true})]})]}),
-          ]
-        }),
-        new TableRow({
-          children:[
-            new TableCell({children:[new Paragraph(" ")]}),
-            new TableCell({children:[new Paragraph(" ")]}),
-            new TableCell({children:[new Paragraph(" ")]}),
-          ]
-        }),
-        new TableRow({
-          children:[
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:signCreated,bold:true})]})]}),
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:signChecked,bold:true})]})]}),
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:signApproved,bold:true})]})]}),
-          ]
-        }),
-        new TableRow({
-          children:[
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Production Supervisor"})]})]}),
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Admin Production"})]})]}),
-            new TableCell({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({text:"Factory Manager"})]})]}),
-          ]
-        })
-      ]
-    });
-
-    // ====== SUSUN SEMUA KE DALAM 1 SECTION ======
+    // ====== SUSUN SEMUA SECTION ======
     doc.addSection({
-      properties:{},
-      children:[
+      children: [
         headerTable,
-        new Paragraph({text:""}),
-        ...isoTitle,
+        new Paragraph({ text: "" }),
+        ...smmTitle,
         ...scopeParas,
         ...refParas,
-        historyTable,
-        new Paragraph({text:""}),
-        stepVisualTable,
-        new Paragraph({text:""}),
+        new Paragraph({ text: "" }),
+        langkahTable,
+        new Paragraph({ text: "" }),
+        riwayatTable,
+        new Paragraph({ text: "" }),
         signTable
       ]
     });
@@ -547,9 +626,7 @@
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = fileNameSafe + ".docx";
-    document.body.appendChild(a);
     a.click();
-    a.remove();
     URL.revokeObjectURL(a.href);
   }
 </script>
