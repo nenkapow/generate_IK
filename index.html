@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <title>Generator IK TIGER → DOCX</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#111827; --soft:#020617;
+      --fg:#e5e7eb; --fg-dim:#9ca3af;
+      --accent:#f97316; --border:#1f2937;
+    }
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+    body{margin:0;background:var(--bg);color:var(--fg);}
+    h1{font-size:1.4rem;margin:0 0 .75rem}
+    .wrap{max-width:1100px;margin:0 auto;padding:1rem;}
+    .card{background:var(--panel);border-radius:.75rem;padding:1rem;margin-bottom:1rem;border:1px solid var(--border);}
+    label{font-size:.85rem;color:var(--fg-dim);display:block;margin-bottom:.15rem;}
+    input,textarea,button{
+      font-size:.85rem;border-radius:.5rem;border:1px solid var(--border);
+      background:var(--soft);color:var(--fg);padding:.4rem .5rem;
+    }
+    textarea{width:100%;min-height:70px;resize:vertical;}
+    input[type="text"]{width:100%;}
+    input[type="number"]{width:80px;}
+    button{
+      cursor:pointer;background:var(--accent);border-color:var(--accent);
+      color:#0b1120;font-weight:600;
+    }
+    button:disabled{opacity:.5;cursor:not-allowed;}
+    .row{display:flex;flex-wrap:wrap;gap:.75rem;}
+    .row > div{flex:1;min-width:180px;}
+    .small{font-size:.75rem;color:var(--fg-dim);}
+    .step-card,.img-card{
+      border:1px solid var(--border);border-radius:.5rem;padding:.5rem;margin-top:.5rem;
+      background:var(--soft);
+    }
+    .step-header,.img-header{
+      display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+      font-size:.8rem;color:var(--fg-dim);margin-bottom:.3rem;
+    }
+    hr{border:none;border-top:1px solid var(--border);margin:.75rem 0;}
+    @media(max-width:768px){
+      .row{flex-direction:column;}
+      input[type="number"]{width:100%;}
+    }
+  </style>
+  <!-- library DOCX di browser -->
+  <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Generator Instruksi Kerja TIGER → DOCX</h1>
+    <div class="small">
+      • Header, border, dan layout mengikuti template standar TIGER.<br>
+      • Simpan logo sebagai <code>logo-tiger.png</code> di folder yang sama dengan file ini.<br>
+      • Setelah klik <strong>Generate DOCX</strong>, file Word akan ter-download dan bisa kamu edit lagi.
+    </div>
+  </div>
+
+  <!-- DATA HEADER -->
+  <div class="card">
+    <h2 style="font-size:1rem;margin-top:0;">1. Header Dokumen</h2>
+    <div class="row">
+      <div>
+        <label>Judul Dokumen (tengah)</label>
+        <input id="docTitle" type="text" placeholder="INSTRUKSI KERJA PRINTING LC 002 BASE">
+      </div>
+      <div>
+        <label>Nomor Dokumen</label>
+        <input id="docNumber" type="text" placeholder="IK/PRO-TP/163">
+      </div>
+      <div>
+        <label>Revisi</label>
+        <input id="docRev" type="text" value="00">
+      </div>
+      <div>
+        <label>Tanggal Efektif</label>
+        <input id="docDate" type="text" placeholder="16 November 2015">
+      </div>
+    </div>
+  </div>
+
+  <!-- BAGIAN SISTEM MUTU -->
+  <div class="card">
+    <h2 style="font-size:1rem;margin-top:0;">2. Sistem Manajemen Mutu</h2>
+    <div class="small">Bagian judul dan tabel sudah default. Kamu hanya isi teks di bawah ini.</div>
+    <label>Ruang Lingkup</label>
+    <textarea id="scope" placeholder="Dimulai dari produk hasil injection sampai dipacking di box WIP."></textarea>
+
+    <label style="margin-top:.5rem;">Referensi (satu baris = satu butir)</label>
+    <textarea id="refs" placeholder="ISO 9001:2015 pasal 8.5.1&#10;ISO 9001:2015 pasal 8.5.2"></textarea>
+  </div>
+
+  <!-- LANGKAH KERJA -->
+  <div class="card">
+    <h2 style="font-size:1rem;margin-top:0;">3. Langkah Kerja & Visual</h2>
+    <div class="small">
+      • Di dokumen Word nanti dibuat tabel 2 kolom: <strong>Deskripsi</strong> dan <strong>Visual</strong>.<br>
+      • Satu “Langkah” di sini = satu nomor langkah (1,2,3,...) di kolom deskripsi.  
+      • Nomor gambar kamu isi sendiri (misal: <code>1,2,3</code> atau <code>5-7</code>).
+    </div>
+    <div id="stepsContainer"></div>
+    <button type="button" onclick="addStep()">+ Tambah Langkah</button>
+
+    <hr>
+
+    <h3 style="font-size:.95rem;">Gambar Visual</h3>
+    <div class="small">
+      • Urutkan sesuai kebutuhan (1 sampai 9 misalnya).  
+      • “Label angka” akan ditulis di atas gambar (contoh di template kamu: <code>1,2,3</code> – <code>4.</code> – dll).
+    </div>
+    <div id="imagesContainer"></div>
+    <button type="button" onclick="addImageInput()">+ Tambah Gambar</button>
+  </div>
+
+  <!-- TANDA TANGAN -->
+  <div class="card">
+    <h2 style="font-size:1rem;margin-top:0;">4. Tanda Tangan</h2>
+    <div class="row">
+      <div>
+        <label>Nama Dibuat</label>
+        <input id="signCreated" type="text" placeholder="">
+        <div class="small">Jabatan fix: Production Supervisor</div>
+      </div>
+      <div>
+        <label>Nama Diperiksa</label>
+        <input id="signChecked" type="text" placeholder="">
+        <div class="small">Jabatan fix: Admin Production</div>
+      </div>
+      <div>
+        <label>Nama Disetujui</label>
+        <input id="signApproved" type="text" placeholder="Musana">
+        <div class="small">Jabatan fix: Factory Manager</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTION -->
+  <div class="card" style="text-align:right;">
+    <button type="button" onclick="generateDoc()">Generate DOCX</button>
+  </div>
+</div>
+
+<script>
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+          WidthType, AlignmentType, BorderStyle, Media } = docx;
+
+  // -------- UI helper: langkah & gambar ----------
+  let stepCounter = 0;
+  let imgCounter = 0;
+
+  function addStep() {
+    stepCounter++;
+    const wrap = document.getElementById("stepsContainer");
+    const div = document.createElement("div");
+    div.className = "step-card";
+    div.dataset.stepId = stepCounter;
+
+    div.innerHTML = `
+      <div class="step-header">
+        <span>Langkah #${stepCounter}</span>
+        <button type="button" onclick="this.closest('.step-card').remove()">hapus</button>
+      </div>
+      <label>Deskripsi langkah</label>
+      <textarea data-role="step-desc"></textarea>
+    `;
+    wrap.appendChild(div);
+  }
+
+  function addImageInput() {
+    imgCounter++;
+    const wrap = document.getElementById("imagesContainer");
+    const div = document.createElement("div");
+    div.className = "img-card";
+    div.dataset.imgId = imgCounter;
+
+    div.innerHTML = `
+      <div class="img-header">
+        <span>Gambar #${imgCounter}</span>
+        <button type="button" onclick="this.closest('.img-card').remove()">hapus</button>
+      </div>
+      <div class="row">
+        <div>
+          <label>File gambar</label>
+          <input type="file" accept="image/*" data-role="img-file">
+        </div>
+        <div>
+          <label>Label angka di atas gambar</label>
+          <input type="text" placeholder="1,2,3" data-role="img-label">
+        </div>
+      </div>
+    `;
+    wrap.appendChild(div);
+  }
+
+  // Tambah beberapa default
+  addStep();
+  addImageInput();
+
+  // --------- Generate DOCX ----------
+  async function generateDoc() {
+    const title = document.getElementById("docTitle").value || "INSTRUKSI KERJA";
+    const number = document.getElementById("docNumber").value || "IK/PRO-TP/XXX";
+    const rev = document.getElementById("docRev").value || "00";
+    const effDate = document.getElementById("docDate").value || "";
+
+    const scope = document.getElementById("scope").value.trim();
+    const refsRaw = document.getElementById("refs").value.trim();
+
+    const signCreated = document.getElementById("signCreated").value || "";
+    const signChecked = document.getElementById("signChecked").value || "";
+    const signApproved = document.getElementById("signApproved").value || "Musana";
+
+    const doc = new Document({
+      sections: [],
+      creator: "Generator IK TIGER",
+    });
+
+    // ---- HEADER TABLE (3 kolom) ----
+    // fetch logo dari file lokal
+    let logoImage;
+    try {
+      const resp = await fetch("logo-tiger.png");
+      const buf = await resp.arrayBuffer();
+      logoImage = Media.addImage(doc, buf, 80, 80);
+    } catch (e) {
+      logoImage = null;
+      alert("Logo 'logo-tiger.png' tidak ditemukan, header tetap dibuat tanpa gambar.");
+    }
+
+    const headerTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              rowSpan: 2,
+              width: { size: 20, type: WidthType.PERCENTAGE },
+              margins: { top: 100, bottom: 100, left: 100, right: 100 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: logoImage ? [logoImage] : [new TextRun("TIGER")],
+                })
+              ]
+            }),
+            new TableCell({
+              rowSpan: 2,
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [new TextRun({ text: "INSTRUKSI KERJA", bold: true })]
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [new TextRun({ text: title, bold: true })]
+                })
+              ]
+            }),
+            new TableCell({
+              width: { size: 30, type: WidthType.PERCENTAGE },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: "Nomor", italics: true }),
+                    new TextRun({ text: " : " + number, bold: false })
+                  ]
+                }),
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: "Revisi", italics: true }),
+                    new TextRun({ text: " : " + rev })
+                  ]
+                })
+              ]
+            })
+          ]
+        }),
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 30, type: WidthType.PERCENTAGE },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: "Tgl Efektif", italics: true }),
+                    new TextRun({ text: " : " + effDate })
+                  ]
+                }),
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: "Hal.", italics: true }),
+                    new TextRun({ text: " : 1 / 2" })
+                  ]
+                })
+              ]
+            })
+          ]
+        })
+      ],
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+        bottom: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+        left: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+        right: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+        insideVertical: { style: BorderStyle.SINGLE, size: 8, color: "000000" }
+      }
+    });
+
+    // SECTION 1
+    doc.addSection({
+      properties: {},
+      children: [
+        headerTable,
+        new Paragraph({ text: "", spacing: { after: 200 } }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: "SISTEM MANAJEMEN MUTU", bold: true })]
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: "ISO 9001:2015", bold: true })]
+        }),
+        new Paragraph({ text: "", spacing: { after: 100 } }),
+
+        new Paragraph({ children: [new TextRun({ text: "Ruang Lingkup:", bold: true })]}),
+        new Paragraph({ text: scope || "", spacing: { after: 200 } }),
+
+        new Paragraph({ children: [new TextRun({ text: "Referensi:", bold: true })]}),
+        ...(refsRaw ? refsRaw.split(/\r?\n/).map((line, idx) =>
+          new Paragraph({ text: (idx+1) + ". " + line })
+        ) : []),
+        new Paragraph({ text: "", spacing: { after: 200 } }),
+
+        // Riwayat Perubahan table (kosong)
+        new Paragraph({ children: [new TextRun({ text: "Riwayat Perubahan:", bold: true })]}),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({
+              children: ["No.", "Revisi", "Tanggal", "Diusulkan Oleh", "Uraian Singkat Perubahan"]
+                .map(t => new TableCell({
+                  children: [new Paragraph({ text: t, bold: true })]
+                }))
+            }),
+            ...Array.from({length:4}).map(() =>
+              new TableRow({
+                children: Array.from({length:5}).map(() =>
+                  new TableCell({ children:[new Paragraph({ text:"" })] })
+                )
+              })
+            )
+          ],
+          borders: {
+            top:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+            bottom:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+            left:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+            right:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+            insideHorizontal:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+            insideVertical:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+          }
+        }),
+
+        new Paragraph({ text: "", spacing:{ after: 200 } }),
+
+        // Tanda tangan
+        new Table({
+          width:{ size:100, type:WidthType.PERCENTAGE},
+          rows:[
+            new TableRow({
+              children:["Dibuat","Diperiksa","Disetujui"].map(t =>
+                new TableCell({ children:[ new Paragraph({ text:t, bold:true, alignment:AlignmentType.CENTER }) ] })
+              )
+            }),
+            // baris kosong utk tanda tangan
+            new TableRow({
+              children:Array.from({length:3}).map(() =>
+                new TableCell({ children:[ new Paragraph({ text:"", spacing:{ after:400 } }) ] })
+              )
+            }),
+            // baris nama
+            new TableRow({
+              children:[
+                new TableCell({ children:[ new Paragraph({ text:signCreated, alignment:AlignmentType.CENTER }) ] }),
+                new TableCell({ children:[ new Paragraph({ text:signChecked, alignment:AlignmentType.CENTER }) ] }),
+                new TableCell({ children:[ new Paragraph({ text:signApproved, alignment:AlignmentType.CENTER }) ] })
+              ]
+            }),
+            // baris jabatan
+            new TableRow({
+              children:[
+                new TableCell({ children:[ new Paragraph({ text:"Production Supervisor", alignment:AlignmentType.CENTER }) ] }),
+                new TableCell({ children:[ new Paragraph({ text:"Admin Production", alignment:AlignmentType.CENTER }) ] }),
+                new TableCell({ children:[ new Paragraph({ text:"Factory Manager", alignment:AlignmentType.CENTER }) ] })
+              ]
+            })
+          ],
+          borders:{
+            top:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+            bottom:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+            left:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+            right:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+            insideHorizontal:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+            insideVertical:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+          }
+        })
+      ]
+    });
+
+    // -------- SECTION 2: Langkah & Visual --------
+    // kumpulkan langkah
+    const stepCards = Array.from(document.querySelectorAll(".step-card"));
+    const steps = stepCards.map((card, idx) => {
+      const desc = card.querySelector("[data-role='step-desc']").value.trim();
+      return { no: idx+1, desc };
+    }).filter(s => s.desc);
+
+    // kumpulkan gambar
+    const imgCards = Array.from(document.querySelectorAll(".img-card"));
+    const images = [];
+    for (const card of imgCards) {
+      const fileInput = card.querySelector("[data-role='img-file']");
+      const labelTxt = card.querySelector("[data-role='img-label']").value || "";
+      if(fileInput.files.length === 0) continue;
+      const file = fileInput.files[0];
+      const buf = await file.arrayBuffer();
+      const img = Media.addImage(doc, buf, 130, 90); // ukuran kira-kira
+      images.push({ label: labelTxt, docImage: img });
+    }
+
+    const langkahTable = new Table({
+      width:{ size:100, type:WidthType.PERCENTAGE },
+      rows:[
+        new TableRow({
+          children:[
+            new TableCell({ children:[ new Paragraph({ text:"Deskripsi", bold:true, alignment:AlignmentType.CENTER }) ] }),
+            new TableCell({ children:[ new Paragraph({ text:"Visual", bold:true, alignment:AlignmentType.CENTER }) ] })
+          ]
+        }),
+        new TableRow({
+          children:[
+            new TableCell({
+              children: steps.length ? steps.flatMap(s => [
+                new Paragraph({ text: s.no + ". " + s.desc, spacing:{ after:100 } })
+              ]) : [new Paragraph({ text:"", })]
+            }),
+            new TableCell({
+              children: images.length ? images.flatMap(im => [
+                new Paragraph({ text: im.label, alignment:AlignmentType.CENTER }),
+                new Paragraph({ children:[ im.docImage ], alignment:AlignmentType.CENTER }),
+                new Paragraph({ text:"", spacing:{ after:150 } })
+              ]) : [new Paragraph({ text:"" })]
+            })
+          ]
+        })
+      ],
+      borders:{
+        top:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+        bottom:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+        left:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+        right:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+        insideHorizontal:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+        insideVertical:{style:BorderStyle.SINGLE,size:8,color:"000000"},
+      }
+    });
+
+    doc.addSection({
+      properties:{},
+      children:[
+        new Paragraph({ text:"", spacing:{ after:200 } }),
+        langkahTable
+      ]
+    });
+
+    // ---- export ----
+    const blob = await Packer.toBlob(doc);
+    const fileNameSafe = (title || "Instruksi Kerja").replace(/[\\/:*?"<>|]/g,"_");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fileNameSafe + ".docx";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+</script>
+</body>
+</html>
