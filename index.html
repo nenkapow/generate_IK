@@ -254,7 +254,10 @@
       });
     }
 
-    const doc = new Document();
+    const doc = new Document({
+      sections: [],                // bikin array sections kosong dulu
+      creator: "Generator IK TIGER" // biar field creator nggak undefined
+    });
 
     // ===== HEADER TIGER =====
     let logoRun = null;
