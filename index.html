@@ -49,8 +49,8 @@
     }
   </style>
 
-  <!-- Library DOCX (UMD, expose global `docx`) -->
-  <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+  <!-- PENTING: pakai jsDelivr, bukan unpkg -->
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -63,7 +63,7 @@
     </div>
   </div>
 
-  <!-- DATA HEADER -->
+  <!-- 1. HEADER -->
   <div class="card">
     <h2 style="font-size:1rem;margin-top:0;">1. Header Dokumen</h2>
     <div class="row">
@@ -86,7 +86,7 @@
     </div>
   </div>
 
-  <!-- BAGIAN SISTEM MUTU -->
+  <!-- 2. SISTEM MUTU -->
   <div class="card">
     <h2 style="font-size:1rem;margin-top:0;">2. Sistem Manajemen Mutu</h2>
     <div class="small">Bagian judul dan tabel sudah default. Kamu hanya isi teks di bawah ini.</div>
@@ -97,7 +97,7 @@
     <textarea id="refs" placeholder="ISO 9001:2015 pasal 8.5.1&#10;ISO 9001:2015 pasal 8.5.2"></textarea>
   </div>
 
-  <!-- LANGKAH KERJA -->
+  <!-- 3. LANGKAH & VISUAL -->
   <div class="card">
     <h2 style="font-size:1rem;margin-top:0;">3. Langkah Kerja &amp; Visual</h2>
     <div class="small">
@@ -119,18 +119,18 @@
     <button type="button" onclick="addImageInput()">+ Tambah Gambar</button>
   </div>
 
-  <!-- TANDA TANGAN -->
+  <!-- 4. TANDA TANGAN -->
   <div class="card">
     <h2 style="font-size:1rem;margin-top:0;">4. Tanda Tangan</h2>
     <div class="row">
       <div>
         <label>Nama Dibuat</label>
-        <input id="signCreated" type="text" placeholder="">
+        <input id="signCreated" type="text">
         <div class="small">Jabatan fix: Production Supervisor</div>
       </div>
       <div>
         <label>Nama Diperiksa</label>
-        <input id="signChecked" type="text" placeholder="">
+        <input id="signChecked" type="text">
         <div class="small">Jabatan fix: Admin Production</div>
       </div>
       <div>
@@ -148,7 +148,7 @@
 </div>
 
 <script>
-  // -------- UI helper: langkah & gambar ----------
+  // ====== UI: Langkah & Gambar ======
   let stepCounter = 0;
   let imgCounter = 0;
 
@@ -196,16 +196,18 @@
     wrap.appendChild(div);
   }
 
-  // tambah default 1 langkah + 1 gambar
+  // default
   addStep();
   addImageInput();
 
-  // --------- Generate DOCX ----------
+  // ====== GENERATE DOCX ======
   async function generateDoc() {
-    if (typeof docx === "undefined") {
+    // cek benar-benar sudah ada
+    if (typeof window.docx === "undefined") {
+      console.error("docx global:", window.docx);
       alert(
         "Library DOCX belum ke-load.\n" +
-        "Pastikan koneksi internet tidak memblokir https://unpkg.com/"
+        "Coba refresh halaman (Ctrl+F5). Kalau masih, cek apakah https://cdn.jsdelivr.net diblok."
       );
       return;
     }
@@ -214,7 +216,7 @@
       Document, Packer, Paragraph, TextRun,
       Table, TableRow, TableCell,
       WidthType, AlignmentType, BorderStyle, Media
-    } = docx;
+    } = window.docx;
 
     const title      = document.getElementById("docTitle").value || "INSTRUKSI KERJA";
     const number     = document.getElementById("docNumber").value || "IK/PRO-TP/XXX";
@@ -228,7 +230,7 @@
     const signChecked  = document.getElementById("signChecked").value || "";
     const signApproved = document.getElementById("signApproved").value || "Musana";
 
-    // kumpulkan langkah
+    // langkah
     const stepCards = document.querySelectorAll("#stepsContainer .step-card");
     const steps = [];
     stepCards.forEach((card, idx) => {
@@ -237,7 +239,7 @@
       if (txt) steps.push({ no: idx + 1, text: txt });
     });
 
-    // kumpulkan gambar
+    // gambar
     const imgCards = document.querySelectorAll("#imagesContainer .img-card");
     const imageEntries = [];
     for (const card of imgCards) {
@@ -254,7 +256,7 @@
 
     const doc = new Document();
 
-    // ====== HEADER (LOGO + JUDUL) ======
+    // ===== HEADER TIGER =====
     let logoRun = null;
     try {
       const res = await fetch("logo-tiger.png");
@@ -263,8 +265,8 @@
         const image = Media.addImage(doc, buf, 120, 120);
         logoRun = image;
       }
-    } catch (e) {
-      // kalau gagal logo, ya sudah, lanjut tanpa logo
+    } catch(e) {
+      console.warn("Logo tidak ditemukan, lanjut tanpa logo.", e);
     }
 
     const headerTable = new Table({
@@ -274,12 +276,7 @@
           children: [
             new TableCell({
               width: { size: 20, type: WidthType.PERCENTAGE },
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-              },
+              borders: allBorders(),
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
@@ -289,29 +286,17 @@
             }),
             new TableCell({
               width: { size: 50, type: WidthType.PERCENTAGE },
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-              },
+              borders: allBorders(),
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({ text: title, bold: true })
-                  ]
+                  children: [new TextRun({ text: title, bold: true })]
                 })
               ]
             }),
             new TableCell({
               width: { size: 30, type: WidthType.PERCENTAGE },
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-              },
+              borders: allBorders(),
               children: [
                 new Paragraph({
                   children: [
@@ -328,31 +313,10 @@
         }),
         new TableRow({
           children: [
+            new TableCell({ borders: allBorders(), children: [new Paragraph({})] }),
+            new TableCell({ borders: allBorders(), children: [new Paragraph({})] }),
             new TableCell({
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-              },
-              children: [new Paragraph({})]
-            }),
-            new TableCell({
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-              },
-              children: [new Paragraph({})]
-            }),
-            new TableCell({
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-              },
+              borders: allBorders(),
               children: [
                 new Paragraph({
                   children: [
@@ -370,7 +334,7 @@
       ]
     });
 
-    // ====== SISTEM MANAJEMEN MUTU ======
+    // ===== SMM =====
     const smmTitle = [
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -403,34 +367,23 @@
         const txt = line.trim();
         if (!txt) return;
         refParas.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: (idx + 1) + ". " + txt })
-            ]
-          })
+          new Paragraph({ children: [new TextRun({ text: (idx + 1) + ". " + txt })] })
         );
       });
       refParas.push(new Paragraph({ text: "" }));
     }
 
-    // ====== LANGKAH KERJA & VISUAL ======
-    const langkahParas = [];
-    langkahParas.push(
+    // ===== LANGKAH & VISUAL =====
+    const langkahParas = [
       new Paragraph({
         children: [new TextRun({ text: "Langkah – langkah:", bold: true })]
       })
-    );
-    steps.forEach((s) => {
-      langkahParas.push(
-        new Paragraph({
-          children: [
-            new TextRun({ text: s.no + ". " + s.text })
-          ]
-        })
-      );
+    ];
+    steps.forEach(s => {
+      langkahParas.push(new Paragraph({ children: [new TextRun({ text: s.no + ". " + s.text })] }));
     });
 
-    // tabel gambar 3 kolom
+    // gambar 3 kolom
     const imgCells = [];
     for (const img of imageEntries) {
       const imgRun = Media.addImage(doc, img.buffer, 160, 120);
@@ -506,7 +459,7 @@
       ]
     });
 
-    // ====== RIWAYAT PERUBAHAN ======
+    // ===== RIWAYAT PERUBAHAN =====
     const riwayatRows = [
       new TableRow({
         children: [
@@ -518,7 +471,6 @@
         ]
       })
     ];
-    // 3 baris kosong
     for (let i = 1; i <= 3; i++) {
       riwayatRows.push(
         new TableRow({
@@ -537,30 +489,15 @@
       rows: riwayatRows
     });
 
-    // ====== TANDA TANGAN ======
+    // ===== TANDA TANGAN =====
     const signTable = new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
         new TableRow({
           children: [
-            new TableCell({
-              children: [new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Dibuat", bold: true })]
-              })]
-            }),
-            new TableCell({
-              children: [new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Diperiksa", bold: true })]
-              })]
-            }),
-            new TableCell({
-              children: [new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Disetujui", bold: true })]
-              })]
-            })
+            new TableCell(centerText("Dibuat", true)),
+            new TableCell(centerText("Diperiksa", true)),
+            new TableCell(centerText("Disetujui", true))
           ]
         }),
         new TableRow({
@@ -580,30 +517,15 @@
         }),
         new TableRow({
           children: [
-            new TableCell({
-              children: [new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Production Supervisor" })]
-              })]
-            }),
-            new TableCell({
-              children: [new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Admin Production" })]
-              })]
-            }),
-            new TableCell({
-              children: [new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Factory Manager" })]
-              })]
-            })
+            new TableCell(centerText("Production Supervisor")),
+            new TableCell(centerText("Admin Production")),
+            new TableCell(centerText("Factory Manager"))
           ]
         })
       ]
     });
 
-    // ====== SUSUN SEMUA SECTION ======
+    // ===== SUSUN SECTION =====
     doc.addSection({
       children: [
         headerTable,
@@ -620,7 +542,7 @@
       ]
     });
 
-    // ====== EXPORT ======
+    // ===== EXPORT =====
     const blob = await Packer.toBlob(doc);
     const fileNameSafe = (title || "Instruksi Kerja").replace(/[\\/:*?"<>|]/g,"_");
     const a = document.createElement("a");
@@ -628,6 +550,27 @@
     a.download = fileNameSafe + ".docx";
     a.click();
     URL.revokeObjectURL(a.href);
+  }
+
+  // helper border dan center text
+  function allBorders() {
+    return {
+      top:    { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+      bottom: { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+      left:   { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+      right:  { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" }
+    };
+  }
+
+  function centerText(text, bold = false) {
+    return {
+      children: [
+        new docx.Paragraph({
+          alignment: docx.AlignmentType.CENTER,
+          children: [new docx.TextRun({ text, bold })]
+        })
+      ]
+    };
   }
 </script>
 </body>
