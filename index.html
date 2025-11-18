@@ -49,7 +49,7 @@
     }
   </style>
 
-  <!-- PENTING: pakai jsDelivr, bukan unpkg -->
+  <!-- Library DOCX (UMD, global `docx`) -->
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 </head>
 <body>
@@ -86,7 +86,7 @@
     </div>
   </div>
 
-  <!-- 2. SISTEM MUTU -->
+  <!-- 2. SMM -->
   <div class="card">
     <h2 style="font-size:1rem;margin-top:0;">2. Sistem Manajemen Mutu</h2>
     <div class="small">Bagian judul dan tabel sudah default. Kamu hanya isi teks di bawah ini.</div>
@@ -97,7 +97,7 @@
     <textarea id="refs" placeholder="ISO 9001:2015 pasal 8.5.1&#10;ISO 9001:2015 pasal 8.5.2"></textarea>
   </div>
 
-  <!-- 3. LANGKAH & VISUAL -->
+  <!-- 3. LANGKAH -->
   <div class="card">
     <h2 style="font-size:1rem;margin-top:0;">3. Langkah Kerja &amp; Visual</h2>
     <div class="small">
@@ -125,12 +125,12 @@
     <div class="row">
       <div>
         <label>Nama Dibuat</label>
-        <input id="signCreated" type="text">
+        <input id="signCreated" type="text" placeholder="">
         <div class="small">Jabatan fix: Production Supervisor</div>
       </div>
       <div>
         <label>Nama Diperiksa</label>
-        <input id="signChecked" type="text">
+        <input id="signChecked" type="text" placeholder="">
         <div class="small">Jabatan fix: Admin Production</div>
       </div>
       <div>
@@ -148,7 +148,7 @@
 </div>
 
 <script>
-  // ====== UI: Langkah & Gambar ======
+  // -------- UI helper: langkah & gambar ----------
   let stepCounter = 0;
   let imgCounter = 0;
 
@@ -196,18 +196,16 @@
     wrap.appendChild(div);
   }
 
-  // default
+  // default 1 langkah + 1 gambar
   addStep();
   addImageInput();
 
-  // ====== GENERATE DOCX ======
+  // --------- Generate DOCX ----------
   async function generateDoc() {
-    // cek benar-benar sudah ada
-    if (typeof window.docx === "undefined") {
-      console.error("docx global:", window.docx);
+    if (typeof docx === "undefined") {
       alert(
         "Library DOCX belum ke-load.\n" +
-        "Coba refresh halaman (Ctrl+F5). Kalau masih, cek apakah https://cdn.jsdelivr.net diblok."
+        "Pastikan koneksi internet tidak memblokir cdn.jsdelivr.net"
       );
       return;
     }
@@ -215,8 +213,8 @@
     const {
       Document, Packer, Paragraph, TextRun,
       Table, TableRow, TableCell,
-      WidthType, AlignmentType, BorderStyle, Media
-    } = window.docx;
+      WidthType, AlignmentType, BorderStyle, ImageRun
+    } = docx;
 
     const title      = document.getElementById("docTitle").value || "INSTRUKSI KERJA";
     const number     = document.getElementById("docNumber").value || "IK/PRO-TP/XXX";
@@ -230,19 +228,17 @@
     const signChecked  = document.getElementById("signChecked").value || "";
     const signApproved = document.getElementById("signApproved").value || "Musana";
 
-    // langkah
-    const stepCards = document.querySelectorAll("#stepsContainer .step-card");
+    // kumpulkan langkah
     const steps = [];
-    stepCards.forEach((card, idx) => {
+    document.querySelectorAll("#stepsContainer .step-card").forEach((card, idx) => {
       const descEl = card.querySelector('[data-role="step-desc"]');
       const txt = (descEl.value || "").trim();
       if (txt) steps.push({ no: idx + 1, text: txt });
     });
 
-    // gambar
-    const imgCards = document.querySelectorAll("#imagesContainer .img-card");
+    // kumpulkan gambar
     const imageEntries = [];
-    for (const card of imgCards) {
+    for (const card of document.querySelectorAll("#imagesContainer .img-card")) {
       const fileInput = card.querySelector('[data-role="img-file"]');
       const labelInput = card.querySelector('[data-role="img-label"]');
       const file = fileInput.files[0];
@@ -254,24 +250,22 @@
       });
     }
 
-    const doc = new Document({
-      sections: [],                // bikin array sections kosong dulu
-      creator: "Generator IK TIGER" // biar field creator nggak undefined
-    });
-
-    // ===== HEADER TIGER =====
+    // ====== LOGO (ImageRun) ======
     let logoRun = null;
     try {
       const res = await fetch("logo-tiger.png");
       if (res.ok) {
         const buf = await res.arrayBuffer();
-        const image = Media.addImage(doc, buf, 120, 120);
-        logoRun = image;
+        logoRun = new ImageRun({
+          data: buf,
+          transformation: { width: 120, height: 120 }
+        });
       }
-    } catch(e) {
-      console.warn("Logo tidak ditemukan, lanjut tanpa logo.", e);
+    } catch (e) {
+      // kalau gagal, lanjut tanpa logo
     }
 
+    // ====== HEADER TABLE ======
     const headerTable = new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
@@ -279,7 +273,7 @@
           children: [
             new TableCell({
               width: { size: 20, type: WidthType.PERCENTAGE },
-              borders: allBorders(),
+              borders: borderAll(),
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
@@ -289,17 +283,19 @@
             }),
             new TableCell({
               width: { size: 50, type: WidthType.PERCENTAGE },
-              borders: allBorders(),
+              borders: borderAll(),
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
-                  children: [new TextRun({ text: title, bold: true })]
+                  children: [
+                    new TextRun({ text: title, bold: true })
+                  ]
                 })
               ]
             }),
             new TableCell({
               width: { size: 30, type: WidthType.PERCENTAGE },
-              borders: allBorders(),
+              borders: borderAll(),
               children: [
                 new Paragraph({
                   children: [
@@ -316,10 +312,10 @@
         }),
         new TableRow({
           children: [
-            new TableCell({ borders: allBorders(), children: [new Paragraph({})] }),
-            new TableCell({ borders: allBorders(), children: [new Paragraph({})] }),
+            new TableCell({ borders: borderAll(), children: [new Paragraph({})] }),
+            new TableCell({ borders: borderAll(), children: [new Paragraph({})] }),
             new TableCell({
-              borders: allBorders(),
+              borders: borderAll(),
               children: [
                 new Paragraph({
                   children: [
@@ -337,7 +333,7 @@
       ]
     });
 
-    // ===== SMM =====
+    // ====== SMM TITLE, SCOPE, REF ======
     const smmTitle = [
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -370,26 +366,39 @@
         const txt = line.trim();
         if (!txt) return;
         refParas.push(
-          new Paragraph({ children: [new TextRun({ text: (idx + 1) + ". " + txt })] })
+          new Paragraph({
+            children: [
+              new TextRun({ text: (idx + 1) + ". " + txt })
+            ]
+          })
         );
       });
       refParas.push(new Paragraph({ text: "" }));
     }
 
-    // ===== LANGKAH & VISUAL =====
-    const langkahParas = [
+    // ====== LANGKAH & VISUAL ======
+    const langkahParas = [];
+    langkahParas.push(
       new Paragraph({
         children: [new TextRun({ text: "Langkah – langkah:", bold: true })]
       })
-    ];
-    steps.forEach(s => {
-      langkahParas.push(new Paragraph({ children: [new TextRun({ text: s.no + ". " + s.text })] }));
+    );
+    steps.forEach((s) => {
+      langkahParas.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: s.no + ". " + s.text })
+          ]
+        })
+      );
     });
 
-    // gambar 3 kolom
     const imgCells = [];
     for (const img of imageEntries) {
-      const imgRun = Media.addImage(doc, img.buffer, 160, 120);
+      const imgRun = new ImageRun({
+        data: img.buffer,
+        transformation: { width: 160, height: 120 }
+      });
       const paras = [];
       if (img.label) {
         paras.push(
@@ -462,7 +471,7 @@
       ]
     });
 
-    // ===== RIWAYAT PERUBAHAN =====
+    // ====== RIWAYAT TABLE ======
     const riwayatRows = [
       new TableRow({
         children: [
@@ -492,15 +501,30 @@
       rows: riwayatRows
     });
 
-    // ===== TANDA TANGAN =====
+    // ====== SIGN TABLE ======
     const signTable = new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
         new TableRow({
           children: [
-            new TableCell(centerText("Dibuat", true)),
-            new TableCell(centerText("Diperiksa", true)),
-            new TableCell(centerText("Disetujui", true))
+            new TableCell({
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Dibuat", bold: true })]
+              })]
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Diperiksa", bold: true })]
+              })]
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Disetujui", bold: true })]
+              })]
+            })
           ]
         }),
         new TableRow({
@@ -520,32 +544,51 @@
         }),
         new TableRow({
           children: [
-            new TableCell(centerText("Production Supervisor")),
-            new TableCell(centerText("Admin Production")),
-            new TableCell(centerText("Factory Manager"))
+            new TableCell({
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Production Supervisor" })]
+              })]
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Admin Production" })]
+              })]
+            }),
+            new TableCell({
+              children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Factory Manager" })]
+              })]
+            })
           ]
         })
       ]
     });
 
-    // ===== SUSUN SECTION =====
-    doc.addSection({
-      children: [
-        headerTable,
-        new Paragraph({ text: "" }),
-        ...smmTitle,
-        ...scopeParas,
-        ...refParas,
-        new Paragraph({ text: "" }),
-        langkahTable,
-        new Paragraph({ text: "" }),
-        riwayatTable,
-        new Paragraph({ text: "" }),
-        signTable
-      ]
+    // ====== SUSUN DOCUMENT ======
+    const allChildren = [
+      headerTable,
+      new Paragraph({ text: "" }),
+      ...smmTitle,
+      ...scopeParas,
+      ...refParas,
+      new Paragraph({ text: "" }),
+      langkahTable,
+      new Paragraph({ text: "" }),
+      riwayatTable,
+      new Paragraph({ text: "" }),
+      signTable
+    ];
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: allChildren
+      }]
     });
 
-    // ===== EXPORT =====
     const blob = await Packer.toBlob(doc);
     const fileNameSafe = (title || "Instruksi Kerja").replace(/[\\/:*?"<>|]/g,"_");
     const a = document.createElement("a");
@@ -555,24 +598,12 @@
     URL.revokeObjectURL(a.href);
   }
 
-  // helper border dan center text
-  function allBorders() {
+  function borderAll() {
     return {
       top:    { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
       bottom: { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
       left:   { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
       right:  { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" }
-    };
-  }
-
-  function centerText(text, bold = false) {
-    return {
-      children: [
-        new docx.Paragraph({
-          alignment: docx.AlignmentType.CENTER,
-          children: [new docx.TextRun({ text, bold })]
-        })
-      ]
     };
   }
 </script>
