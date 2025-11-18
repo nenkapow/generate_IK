@@ -259,125 +259,112 @@
       sections: []
     });
 
-    // ------- helper bikin header table (dipakai 2x) ----------
-    async function makeHeaderTable(pageText) {
-      let logoRun = null;
-      try {
-        const res = await fetch("logo-tiger.png");
-        if (res.ok) {
-          const buf = await res.arrayBuffer();
-          logoRun = new ImageRun({
-            data: buf,
-            transformation: { width: 120, height: 120 }
-          });
-        }
-      } catch (e) {
-        // kalau gagal logo, lanjut aja tanpa logo
+      // ------- helper bikin header table (dipakai 2x) ----------
+  async function makeHeaderTable(pageText) {
+    let logoRun = null;
+    try {
+      const res = await fetch("logo-tiger.png");
+      if (res.ok) {
+        const buf = await res.arrayBuffer();
+        // logo diperkecil supaya tinggi header mirip template asli
+        logoRun = docx.Media.addImage(doc, buf, 75, 75);
       }
-
-      return new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: [
-          new TableRow({
-            children: [
-              new TableCell({
-                width: { size: 20, type: WidthType.PERCENTAGE },
-                borders: {
-                  top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-                },
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: logoRun ? [logoRun] : []
-                  })
-                ]
-              }),
-              new TableCell({
-                width: { size: 50, type: WidthType.PERCENTAGE },
-                borders: {
-                  top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-                },
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [
-                      new TextRun({ text: title, bold: true })
-                    ]
-                  })
-                ]
-              }),
-              new TableCell({
-                width: { size: 30, type: WidthType.PERCENTAGE },
-                borders: {
-                  top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-                },
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({ text: "Nomor", bold: true }),
-                      new TextRun({ text: " : " + number }),
-                      new TextRun({ text: "\n" }),
-                      new TextRun({ text: "Revisi", bold: true }),
-                      new TextRun({ text: " : " + rev })
-                    ]
-                  })
-                ]
-              })
-            ]
-          }),
-          new TableRow({
-            children: [
-              new TableCell({
-                borders: {
-                  top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-                },
-                children: [new Paragraph({})]
-              }),
-              new TableCell({
-                borders: {
-                  top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-                },
-                children: [new Paragraph({})]
-              }),
-              new TableCell({
-                borders: {
-                  top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
-                  right: { style: BorderStyle.SINGLE, size: 4, color: "000000" }
-                },
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({ text: "Tgl Efektif", bold: true }),
-                      new TextRun({ text: " : " + effDate }),
-                      new TextRun({ text: "\n" }),
-                      new TextRun({ text: "Hal.", bold: true }),
-                      new TextRun({ text: " : " + pageText })
-                    ]
-                  })
-                ]
-              })
-            ]
-          })
-        ]
-      });
+    } catch (e) {
+      // kalau gagal logo, lanjut aja tanpa logo
     }
+
+    // tabel kecil di kolom kanan: Nomor / Revisi / Tgl Efektif / Hal.
+    const rightInnerTable = new docx.Table({
+      width: { size: 100, type: docx.WidthType.PERCENTAGE },
+      rows: [
+        new docx.TableRow({
+          children: [
+            new docx.TableCell({
+              children: [new docx.Paragraph({ children: [new docx.TextRun({ text: "Nomor", bold: true })] })]
+            }),
+            new docx.TableCell({
+              children: [new docx.Paragraph({ text: ": " + number })]
+            }),
+            new docx.TableCell({
+              children: [new docx.Paragraph({ children: [new docx.TextRun({ text: "Revisi", bold: true })] })]
+            }),
+            new docx.TableCell({
+              children: [new docx.Paragraph({ text: ": " + rev })]
+            })
+          ]
+        }),
+        new docx.TableRow({
+          children: [
+            new docx.TableCell({
+              children: [new docx.Paragraph({ children: [new docx.TextRun({ text: "Tgl Efektif", bold: true })] })]
+            }),
+            new docx.TableCell({
+              children: [new docx.Paragraph({ text: ": " + effDate })]
+            }),
+            new docx.TableCell({
+              children: [new docx.Paragraph({ children: [new docx.TextRun({ text: "Hal.", bold: true })] })]
+            }),
+            new docx.TableCell({
+              children: [new docx.Paragraph({ text: ": " + pageText })]
+            })
+          ]
+        })
+      ]
+    });
+
+    // tabel header utama: logo | judul | tabel kecil kanan
+    return new docx.Table({
+      width: { size: 100, type: docx.WidthType.PERCENTAGE },
+      rows: [
+        new docx.TableRow({
+          children: [
+            new docx.TableCell({
+              width: { size: 20, type: docx.WidthType.PERCENTAGE },
+              borders: {
+                top:    { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+                bottom: { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+                left:   { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+                right:  { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" }
+              },
+              children: [
+                new docx.Paragraph({
+                  alignment: docx.AlignmentType.CENTER,
+                  children: logoRun ? [logoRun] : []
+                })
+              ]
+            }),
+            new docx.TableCell({
+              width: { size: 50, type: docx.WidthType.PERCENTAGE },
+              borders: {
+                top:    { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+                bottom: { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+                left:   { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+                right:  { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" }
+              },
+              children: [
+                new docx.Paragraph({
+                  alignment: docx.AlignmentType.CENTER,
+                  children: [
+                    new docx.TextRun({ text: title, bold: true })
+                  ]
+                })
+              ]
+            }),
+            new docx.TableCell({
+              width: { size: 30, type: docx.WidthType.PERCENTAGE },
+              borders: {
+                top:    { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+                bottom: { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+                left:   { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" },
+                right:  { style: docx.BorderStyle.SINGLE, size: 4, color: "000000" }
+              },
+              children: [ rightInnerTable ]
+            })
+          ]
+        })
+      ]
+    });
+  }
 
     // ====== SISTEM MANAJEMEN MUTU ======
     const smmTitle = [
