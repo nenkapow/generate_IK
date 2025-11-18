@@ -252,7 +252,12 @@ async function generateDoc() {
     });
   }
 
-  const doc = new Document();
+  const doc = new Document({
+    creator: "Generator IK TIGER",
+    title: title,
+    description: "",
+    sections: []
+  });
 
   // ------- helper bikin header table (dipakai 2x) ----------
   async function makeHeaderTable(pageText) {
